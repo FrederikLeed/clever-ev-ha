@@ -84,6 +84,16 @@ def api_get(path: str, clever_headers: dict, params: dict | None = None):
     return data["data"]
 
 
+def api_put(path: str, clever_headers: dict, body: dict):
+    resp = requests.put(f"{BASE_URL}/{path}", headers=clever_headers, json=body)
+    if resp.status_code != 200:
+        fail(f"PUT /{path} returned {resp.status_code}", resp.text)
+    data = resp.json()
+    if not data.get("status"):
+        fail(f"PUT /{path} API error: {data.get('statusMessage')}", data)
+    return data["data"]
+
+
 # ── Entity value helpers (mirrors sensor.py logic) ─────────────────
 
 def smart_cfg(inst: dict) -> dict:
@@ -242,18 +252,49 @@ for inst in installations:
         ("sensor",        "Last Session Energy",  last_session_kwh(records, connector_id)),
         ("sensor",        "Monthly Energy",       monthly_kwh(records, connector_id)),
         ("sensor",        "Departure Time",       (cfg.get("departureTime") or {}).get("time", "unavailable")),
-        ("sensor",        "Desired Range",        f"{(cfg.get('desiredRange') or {}).get('desiredRange', '?')} kWh"),
+        ("number",         "Desired Range",        f"{(cfg.get('desiredRange') or {}).get('desiredRange', '?')} kWh"),
         ("sensor",        "Phase Count",          str((cfg.get("configuredEffect") or {}).get("phaseCount", "?"))),
         ("sensor",        "Max Ampere",           f"{(cfg.get('configuredEffect') or {}).get('ampere', '?')} A"),
         ("binary_sensor", "Smart Charging",       "ON" if inst.get("smartChargingIsEnabled") else "OFF"),
         ("binary_sensor", "Charger Online",       "ON" if inst.get("isOnline") else "OFF"),
         ("switch",        "Smart Charging",       "ON (read-only)" if inst.get("smartChargingIsEnabled") else "OFF (read-only)"),
+        ("button",        "Boost 1 Hour",         f"POST .../chargepoints/{inst.get('chargeBoxId')}/connectors/{connector_id}/timebox-boost"),
+        ("button",        "Boost Until Full",     f"POST .../chargepoints/{inst.get('chargeBoxId')}/connectors/{connector_id}/boost"),
+        ("button",        "Cancel Boost",         f"POST .../chargepoints/{inst.get('chargeBoxId')}/connectors/{connector_id}/unboost"),
     ]
     # Electricity price only once (connector 1 or first)
     if connector_id == installations[0].get("connectorId"):
         rows.insert(4, ("sensor", "Electricity Price", current_hour_price(prices)))
 
     print_entity_table(rows)
+
+# ── Step 6: Test power-required write endpoint ───────────────────
+step(6, "PUT chargingprofiles/{id}/power-required (read-back test)")
+
+for p in profiles:
+    pid = p.get("chargingProfileId")
+    if not pid:
+        continue
+    # Read current desired range from matching installation
+    current_val = None
+    for inst in installations:
+        profile = profile_by_connector.get(inst.get("connectorId"))
+        if profile and profile.get("chargingProfileId") == pid:
+            cfg = smart_cfg(inst)
+            current_val = (cfg.get("desiredRange") or {}).get("desiredRange")
+            break
+
+    if current_val is None:
+        print(f"  SKIP  Profile {pid[:8]}... — no current desiredRange found")
+        continue
+
+    # Write the same value back (non-destructive round-trip)
+    result = api_put(
+        f"chargingprofiles/{pid}/power-required",
+        clever_headers,
+        {"powerRequired": current_val},
+    )
+    ok(f"Profile {pid[:8]}... — set powerRequired={current_val} -> {result}")
 
 print(f"\n{'*'*60}")
 print("  ALL STEPS PASSED")

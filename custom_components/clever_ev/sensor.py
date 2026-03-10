@@ -127,13 +127,6 @@ SENSORS: tuple[CleverSensorDescription, ...] = (
         value_fn=lambda inst, _d: (_smart_cfg(inst).get("departureTime") or {}).get("time"),
     ),
     CleverSensorDescription(
-        key="desired_range",
-        name="Desired Range",
-        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        icon="mdi:battery-charging-80",
-        value_fn=lambda inst, _d: (_smart_cfg(inst).get("desiredRange") or {}).get("desiredRange"),
-    ),
-    CleverSensorDescription(
         key="electricity_price",
         name="Electricity Price",
         native_unit_of_measurement="DKK/kWh",

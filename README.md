@@ -16,7 +16,9 @@ The Clever iOS/Android app communicates with `mobileapp-backend.clever.dk`. This
 - Smart charging status (enabled/disabled)
 - Energy tracking — last session kWh and monthly total per connector
 - Hourly electricity price in DKK/kWh with full tariff breakdown
-- Charging configuration — departure time, desired range, phase count, max ampere
+- Charging configuration — departure time, phase count, max ampere
+- **Set desired charge range** via slider (number entity, 5–100 kWh)
+- **Boost charging** — skip smart charging for 1 hour, charge until full, or cancel boost
 - Multiple connectors/installations on the same account, each as a separate HA device
 - Automatic token refresh — no re-authentication required under normal operation
 - Reauth flow if credentials ever become invalid
@@ -36,9 +38,14 @@ Entities are created per installation (connector). If you have two connectors, y
 | `sensor.clever_ev_monthly_energy` | Total energy charged this calendar month | kWh |
 | `sensor.clever_ev_electricity_price` | Current hour spot price incl. all tariffs | DKK/kWh |
 | `sensor.clever_ev_departure_time` | Configured departure time for smart charging | HH:MM |
-| `sensor.clever_ev_desired_range` | Desired battery range target | kWh |
 | `sensor.clever_ev_phase_count` | Number of phases configured | — |
 | `sensor.clever_ev_max_ampere` | Maximum configured ampere | A |
+
+### Number
+
+| Entity | Description | Range |
+|---|---|---|
+| `number.clever_ev_desired_range` | Set desired charge range target | 5–100 kWh |
 
 ### Binary Sensors
 
@@ -47,11 +54,19 @@ Entities are created per installation (connector). If you have two connectors, y
 | `binary_sensor.clever_ev_smart_charging` | Smart charging enabled |
 | `binary_sensor.clever_ev_charger_online` | Charger reachable |
 
+### Buttons
+
+| Entity | Description |
+|---|---|
+| `button.clever_ev_boost_1_hour` | Disable smart charging for 1 hour (timebox boost) |
+| `button.clever_ev_boost_until_full` | Disable smart charging until 100% (full boost) |
+| `button.clever_ev_cancel_boost` | Cancel active boost, re-enable smart charging |
+
 ### Switches
 
 | Entity | Description |
 |---|---|
-| `switch.clever_ev_smart_charging` | Enable / disable smart charging *(write endpoint pending — `canDisableSmartCharging` is false on Clever One subscriptions)* |
+| `switch.clever_ev_smart_charging` | Smart charging state *(read-only — `canDisableSmartCharging` is false on Clever One subscriptions; use boost buttons instead)* |
 
 ## Installation
 
@@ -115,6 +130,7 @@ CLEVER_EMAIL=you@example.com CLEVER_PASSWORD=yourpassword python test_auth.py
 | 3 | Token refresh — refresh_token → new id_token |
 | 4 | All Clever API endpoints (installations, profiles, history, electricity price) |
 | 5 | Entity preview — prints every HA entity with its live value |
+| 6 | Write endpoint test — round-trip set power-required (non-destructive) |
 
 ### Example output
 
@@ -135,12 +151,15 @@ CLEVER_EMAIL=you@example.com CLEVER_PASSWORD=yourpassword python test_auth.py
   sensor          Monthly Energy          38.834 kWh
   sensor          Electricity Price       1.4839 DKK/kWh
   sensor          Departure Time          05:45
-  sensor          Desired Range           40 kWh
+  number          Desired Range           40 kWh
   sensor          Phase Count             3
   sensor          Max Ampere              16 A
   binary_sensor   Smart Charging          ON
   binary_sensor   Charger Online          ON
   switch          Smart Charging          ON (read-only)
+  button          Boost 1 Hour            POST .../timebox-boost
+  button          Boost Until Full        POST .../boost
+  button          Cancel Boost            POST .../unboost
 ```
 
 ## Update intervals
@@ -184,17 +203,27 @@ automation:
     - service: notify.mobile_app
       data:
         message: "Cheap electricity now: {{ states('sensor.clever_ev_electricity_price') }} DKK/kWh"
+
+# Boost charging for 1 hour when electricity drops below 0.50 DKK/kWh
+automation:
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.clever_ev_electricity_price
+      below: 0.50
+  action:
+    - service: button.press
+      target:
+        entity_id: button.clever_ev_boost_1_hour
 ```
 
 ## TODO
 
-- [ ] **Disable smart charging for 1 hour** — bypass smart charging temporarily (boost for 60 min), then resume normal schedule. Requires capturing the boost/timed-override write endpoint via MITM.
-- [ ] **Disable smart charging until 100%** — charge to full immediately regardless of departure time or price. Requires capturing the unlimited boost write endpoint via MITM.
-- [ ] Confirm write endpoints for smart charging toggle (`canDisableSmartCharging` is currently `false` on Clever One — may require a different subscription tier or a different API path).
+- [ ] Departure time control (number or time entity for setting departure time)
+- [ ] Phase count / ampere configuration (if write endpoints can be found)
 
 ## Known limitations
 
-- **Write endpoints** for toggling smart charging have not been confirmed. `canDisableSmartCharging: false` on Clever One subscriptions suggests this may be controlled by Clever at the subscription level regardless.
+- **Smart charging switch** is read-only. `canDisableSmartCharging: false` on Clever One subscriptions — use the boost buttons to temporarily override smart charging instead.
 - No support for public Clever charging points — home charger only.
 
 ## Technical notes

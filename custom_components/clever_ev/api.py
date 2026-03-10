@@ -109,9 +109,23 @@ class CleverApi:
             raise CleverApiError(data.get("statusMessage", "Unknown API error"))
         return data["data"]
 
-    async def _post(self, path: str, body: Any) -> Any:
+    async def _post(self, path: str, body: Any = None) -> Any:
         url = f"{BASE_URL}/{path}"
-        async with self._session.post(
+        kwargs: dict[str, Any] = {"headers": await self._headers()}
+        if body is not None:
+            kwargs["json"] = body
+        async with self._session.post(url, **kwargs) as resp:
+            if resp.status in (401, 403):
+                raise CleverAuthError("Token rejected by Clever API")
+            resp.raise_for_status()
+            data = await resp.json()
+        if not data.get("status"):
+            raise CleverApiError(data.get("statusMessage", "Unknown API error"))
+        return data["data"]
+
+    async def _put(self, path: str, body: Any) -> Any:
+        url = f"{BASE_URL}/{path}"
+        async with self._session.put(
             url, headers=await self._headers(), json=body
         ) as resp:
             if resp.status in (401, 403):
@@ -150,3 +164,36 @@ class CleverApi:
 
     async def async_get_profile(self) -> dict:
         return await self._get("profiles/get-profile")
+
+    async def async_set_power_required(
+        self, charging_profile_id: str, power_kwh: int
+    ) -> str:
+        """Set desired charge range in kWh. Returns 'Accepted' or raises."""
+        return await self._put(
+            f"chargingprofiles/{charging_profile_id}/power-required",
+            {"powerRequired": power_kwh},
+        )
+
+    async def async_timebox_boost(
+        self, charge_box_id: str, connector_id: int
+    ) -> str:
+        """Disable smart charging for 1 hour."""
+        return await self._post(
+            f"smartcharging/chargepoints/{charge_box_id}/connectors/{connector_id}/timebox-boost"
+        )
+
+    async def async_boost(
+        self, charge_box_id: str, connector_id: int
+    ) -> str:
+        """Disable smart charging until 100%."""
+        return await self._post(
+            f"smartcharging/chargepoints/{charge_box_id}/connectors/{connector_id}/boost"
+        )
+
+    async def async_unboost(
+        self, charge_box_id: str, connector_id: int
+    ) -> str:
+        """Cancel boost — re-enable smart charging."""
+        return await self._post(
+            f"smartcharging/chargepoints/{charge_box_id}/connectors/{connector_id}/unboost"
+        )
