@@ -1,0 +1,11 @@
+{
+  "domain": "clever_ev",
+  "name": "Clever EV",
+  "codeowners": ["@frederikleed"],
+  "config_flow": true,
+  "documentation": "https://github.com/frederikleed/clever-ev-ha",
+  "version": "0.1.0",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "requirements": []
+}
