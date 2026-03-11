@@ -165,6 +165,15 @@ class CleverApi:
     async def async_get_profile(self) -> dict:
         return await self._get("profiles/get-profile")
 
+    async def async_set_departure_time(
+        self, charging_profile_id: str, departure_time: str
+    ) -> str:
+        """Set departure time (HH:MM). Returns 'Accepted' or raises."""
+        return await self._put(
+            f"chargingprofiles/{charging_profile_id}/departure-time",
+            {"departureTime": departure_time},
+        )
+
     async def async_set_power_required(
         self, charging_profile_id: str, power_kwh: int
     ) -> str:

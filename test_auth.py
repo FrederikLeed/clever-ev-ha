@@ -251,8 +251,9 @@ for inst in installations:
         ("sensor",        "Online Status",        "Online" if inst.get("isOnline") else "Offline"),
         ("sensor",        "Last Session Energy",  last_session_kwh(records, connector_id)),
         ("sensor",        "Monthly Energy",       monthly_kwh(records, connector_id)),
-        ("sensor",        "Departure Time",       (cfg.get("departureTime") or {}).get("time", "unavailable")),
+        ("time",          "Departure Time",       (cfg.get("departureTime") or {}).get("time", "unavailable")),
         ("number",         "Desired Range",        f"{(cfg.get('desiredRange') or {}).get('desiredRange', '?')} kWh"),
+        ("sensor",        "Boost Status",         f"{strategy.get('reason') or 'Boosted'}" if strategy.get("disabled") else "Smart Charging"),
         ("sensor",        "Phase Count",          str((cfg.get("configuredEffect") or {}).get("phaseCount", "?"))),
         ("sensor",        "Max Ampere",           f"{(cfg.get('configuredEffect') or {}).get('ampere', '?')} A"),
         ("binary_sensor", "Smart Charging",       "ON" if inst.get("smartChargingIsEnabled") else "OFF"),
@@ -295,6 +296,26 @@ for p in profiles:
         {"powerRequired": current_val},
     )
     ok(f"Profile {pid[:8]}... — set powerRequired={current_val} -> {result}")
+
+# ── Step 7: Test departure-time write endpoint ──────────────────
+step(7, "PUT chargingprofiles/{id}/departure-time (read-back test)")
+
+for p in profiles:
+    pid = p.get("chargingProfileId")
+    if not pid:
+        continue
+    current_time = (p.get("strategySettings") or {}).get("departureTime")
+    if not current_time:
+        print(f"  SKIP  Profile {pid[:8]}... — no current departureTime found")
+        continue
+
+    # Write the same value back (non-destructive round-trip)
+    result = api_put(
+        f"chargingprofiles/{pid}/departure-time",
+        clever_headers,
+        {"departureTime": current_time},
+    )
+    ok(f"Profile {pid[:8]}... — set departureTime={current_time} -> {result}")
 
 print(f"\n{'*'*60}")
 print("  ALL STEPS PASSED")

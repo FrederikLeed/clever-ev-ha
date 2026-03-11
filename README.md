@@ -16,8 +16,10 @@ The Clever iOS/Android app communicates with `mobileapp-backend.clever.dk`. This
 - Smart charging status (enabled/disabled)
 - Energy tracking — last session kWh and monthly total per connector
 - Hourly electricity price in DKK/kWh with full tariff breakdown
-- Charging configuration — departure time, phase count, max ampere
+- Charging configuration — phase count, max ampere
 - **Set desired charge range** via slider (number entity, 5–100 kWh)
+- **Set departure time** via time picker
+- **Boost status** — shows whether smart charging or boost is active
 - **Boost charging** — skip smart charging for 1 hour, charge until full, or cancel boost
 - Multiple connectors/installations on the same account, each as a separate HA device
 - Automatic token refresh — no re-authentication required under normal operation
@@ -37,7 +39,7 @@ Entities are created per installation (connector). If you have two connectors, y
 | `sensor.clever_ev_last_session_energy` | Energy delivered in last completed session | kWh |
 | `sensor.clever_ev_monthly_energy` | Total energy charged this calendar month | kWh |
 | `sensor.clever_ev_electricity_price` | Current hour spot price incl. all tariffs | DKK/kWh |
-| `sensor.clever_ev_departure_time` | Configured departure time for smart charging | HH:MM |
+| `sensor.clever_ev_boost_status` | Current charging mode: `Smart Charging` or boost reason | — |
 | `sensor.clever_ev_phase_count` | Number of phases configured | — |
 | `sensor.clever_ev_max_ampere` | Maximum configured ampere | A |
 
@@ -46,6 +48,12 @@ Entities are created per installation (connector). If you have two connectors, y
 | Entity | Description | Range |
 |---|---|---|
 | `number.clever_ev_desired_range` | Set desired charge range target | 5–100 kWh |
+
+### Time
+
+| Entity | Description |
+|---|---|
+| `time.clever_ev_departure_time` | Set smart charging departure time |
 
 ### Binary Sensors
 
@@ -131,6 +139,7 @@ CLEVER_EMAIL=you@example.com CLEVER_PASSWORD=yourpassword python test_auth.py
 | 4 | All Clever API endpoints (installations, profiles, history, electricity price) |
 | 5 | Entity preview — prints every HA entity with its live value |
 | 6 | Write endpoint test — round-trip set power-required (non-destructive) |
+| 7 | Write endpoint test — round-trip set departure-time (non-destructive) |
 
 ### Example output
 
@@ -150,8 +159,9 @@ CLEVER_EMAIL=you@example.com CLEVER_PASSWORD=yourpassword python test_auth.py
   sensor          Last Session Energy     14.519 kWh
   sensor          Monthly Energy          38.834 kWh
   sensor          Electricity Price       1.4839 DKK/kWh
-  sensor          Departure Time          05:45
+  time            Departure Time          05:45
   number          Desired Range           40 kWh
+  sensor          Boost Status            Smart Charging
   sensor          Phase Count             3
   sensor          Max Ampere              16 A
   binary_sensor   Smart Charging          ON
@@ -218,8 +228,8 @@ automation:
 
 ## TODO
 
-- [ ] Departure time control (number or time entity for setting departure time)
 - [ ] Phase count / ampere configuration (if write endpoints can be found)
+- [ ] Verify boost status sensor shows correct state during active boost
 
 ## Known limitations
 

@@ -10,7 +10,7 @@ from .api import CleverApi
 from .const import CONF_REFRESH_TOKEN, DOMAIN
 from .coordinator import CleverCoordinator
 
-PLATFORMS = ["sensor", "binary_sensor", "switch", "number", "button"]
+PLATFORMS = ["sensor", "binary_sensor", "switch", "number", "button", "time"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

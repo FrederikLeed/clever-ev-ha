@@ -22,6 +22,18 @@ from .const import DOMAIN
 from .coordinator import CleverCoordinator
 
 
+def _boost_status(inst: dict) -> str | None:
+    """Return boost status from the profile's strategySettings."""
+    strategy = (inst.get("_profile") or {}).get("strategySettings") or {}
+    disabled = strategy.get("disabled")
+    reason = strategy.get("reason")
+    if disabled is True:
+        return reason or "Boosted"
+    if disabled is False:
+        return "Smart Charging"
+    return None
+
+
 def _smart_cfg(inst: dict) -> dict:
     return (
         (inst.get("smartChargingConfiguration") or {})
@@ -121,10 +133,10 @@ SENSORS: tuple[CleverSensorDescription, ...] = (
         value_fn=lambda inst, d: _monthly_kwh(d, inst.get("connectorId")),
     ),
     CleverSensorDescription(
-        key="departure_time",
-        name="Departure Time",
-        icon="mdi:clock-outline",
-        value_fn=lambda inst, _d: (_smart_cfg(inst).get("departureTime") or {}).get("time"),
+        key="boost_status",
+        name="Boost Status",
+        icon="mdi:lightning-bolt",
+        value_fn=lambda inst, _d: _boost_status(inst),
     ),
     CleverSensorDescription(
         key="electricity_price",
