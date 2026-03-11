@@ -241,6 +241,16 @@ for inst in installations:
     strategy = (profile.get("strategySettings") or {})
     cfg = smart_cfg(inst)
 
+    # Check if car is actively charging (recommendation endpoint)
+    profile_id = profile.get("id")
+    car_charging = False
+    if profile_id:
+        try:
+            api_get(f"chargingprofiles/{profile_id}/recommendation", clever_headers)
+            car_charging = True
+        except SystemExit:
+            pass
+
     print(f"\n  Device: Clever EV Charger (Connector {connector_id})")
     print(f"  Address: {inst.get('address')}, {inst.get('city')}")
     print(f"  Installation ID: {inst_id}  Charge Box: {inst.get('chargeBoxId')}")
@@ -253,11 +263,12 @@ for inst in installations:
         ("sensor",        "Monthly Energy",       monthly_kwh(records, connector_id)),
         ("time",          "Departure Time",       (cfg.get("departureTime") or {}).get("time", "unavailable")),
         ("number",         "Desired Range",        f"{(cfg.get('desiredRange') or {}).get('desiredRange', '?')} kWh"),
-        ("sensor",        "Boost Status",         f"{strategy.get('reason') or 'Boosted'}" if strategy.get("disabled") else "Smart Charging"),
+        ("sensor",        "Boost Status",         "Smart Charging (optimistic — see notes)"),
         ("sensor",        "Phase Count",          str((cfg.get("configuredEffect") or {}).get("phaseCount", "?"))),
         ("sensor",        "Max Ampere",           f"{(cfg.get('configuredEffect') or {}).get('ampere', '?')} A"),
         ("binary_sensor", "Smart Charging",       "ON" if inst.get("smartChargingIsEnabled") else "OFF"),
         ("binary_sensor", "Charger Online",       "ON" if inst.get("isOnline") else "OFF"),
+        ("binary_sensor", "Car Charging",         "ON" if car_charging else "OFF"),
         ("switch",        "Smart Charging",       "ON (read-only)" if inst.get("smartChargingIsEnabled") else "OFF (read-only)"),
         ("button",        "Boost 1 Hour",         f"POST .../chargepoints/{inst.get('chargeBoxId')}/connectors/{connector_id}/timebox-boost"),
         ("button",        "Boost Until Full",     f"POST .../chargepoints/{inst.get('chargeBoxId')}/connectors/{connector_id}/boost"),
