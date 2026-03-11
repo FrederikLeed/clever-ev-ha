@@ -1,6 +1,7 @@
 """Button entities for Clever EV."""
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from homeassistant.components.button import ButtonEntity
@@ -53,6 +54,7 @@ class CleverTimeboxBoostButton(_CleverBoostButton):
         await self.coordinator.api.async_timebox_boost(
             self._charge_box_id, self._connector_id
         )
+        await asyncio.sleep(5)
         await self.coordinator.async_request_refresh()
 
 
@@ -68,6 +70,7 @@ class CleverBoostButton(_CleverBoostButton):
         await self.coordinator.api.async_boost(
             self._charge_box_id, self._connector_id
         )
+        await asyncio.sleep(5)
         await self.coordinator.async_request_refresh()
 
 
@@ -83,4 +86,5 @@ class CleverUnboostButton(_CleverBoostButton):
         await self.coordinator.api.async_unboost(
             self._charge_box_id, self._connector_id
         )
+        await asyncio.sleep(5)
         await self.coordinator.async_request_refresh()
