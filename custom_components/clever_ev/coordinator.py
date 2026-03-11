@@ -61,18 +61,18 @@ class CleverCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # --- DEBUG: dump raw data so we can find where boost state lives ---
         import json
-        for inst in installations:
-            _LOGGER.warning(
-                "CLEVER DEBUG installation %s: %s",
-                inst.get("connectorId"),
-                json.dumps(inst, indent=2, default=str),
-            )
         for p in profiles:
-            _LOGGER.warning(
-                "CLEVER DEBUG profile %s: %s",
-                p.get("chargingProfileId"),
-                json.dumps(p, indent=2, default=str),
-            )
+            pid = p.get("id") or p.get("chargingProfileId")
+            if pid:
+                try:
+                    rec = await self.api.async_get_recommendation(pid)
+                    _LOGGER.warning(
+                        "CLEVER DEBUG recommendation %s: %s",
+                        pid,
+                        json.dumps(rec, indent=2, default=str),
+                    )
+                except Exception as exc:
+                    _LOGGER.warning("CLEVER DEBUG recommendation %s FAILED: %s", pid, exc)
         # --- END DEBUG ---
 
         # dar_reference_id is the same location for all connectors — grab from first profile

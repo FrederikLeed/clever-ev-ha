@@ -165,6 +165,10 @@ class CleverApi:
     async def async_get_profile(self) -> dict:
         return await self._get("profiles/get-profile")
 
+    async def async_get_recommendation(self, charging_profile_id: str) -> dict:
+        """Get smart charging recommendation for a profile."""
+        return await self._get(f"chargingprofiles/{charging_profile_id}/recommendation")
+
     async def async_set_departure_time(
         self, charging_profile_id: str, departure_time: str
     ) -> str:
