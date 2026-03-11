@@ -273,14 +273,14 @@ for inst in installations:
 step(6, "PUT chargingprofiles/{id}/power-required (read-back test)")
 
 for p in profiles:
-    pid = p.get("chargingProfileId")
+    pid = p.get("id") or p.get("chargingProfileId")
     if not pid:
         continue
     # Read current desired range from matching installation
     current_val = None
     for inst in installations:
         profile = profile_by_connector.get(inst.get("connectorId"))
-        if profile and profile.get("chargingProfileId") == pid:
+        if profile and (profile.get("id") or profile.get("chargingProfileId")) == pid:
             cfg = smart_cfg(inst)
             current_val = (cfg.get("desiredRange") or {}).get("desiredRange")
             break
@@ -301,7 +301,7 @@ for p in profiles:
 step(7, "PUT chargingprofiles/{id}/departure-time (read-back test)")
 
 for p in profiles:
-    pid = p.get("chargingProfileId")
+    pid = p.get("id") or p.get("chargingProfileId")
     if not pid:
         continue
     current_time = (p.get("strategySettings") or {}).get("departureTime")
@@ -316,6 +316,19 @@ for p in profiles:
         {"departureTime": current_time},
     )
     ok(f"Profile {pid[:8]}... — set departureTime={current_time} -> {result}")
+
+# ── Step 8: Dump recommendation data (boost state investigation) ──
+step(8, "GET chargingprofiles/{id}/recommendation (boost state debug)")
+
+for p in profiles:
+    pid = p.get("id") or p.get("chargingProfileId")
+    if not pid:
+        continue
+    try:
+        rec = api_get(f"chargingprofiles/{pid}/recommendation", clever_headers)
+        pprint(f"Recommendation for profile {pid[:8]}...", rec)
+    except SystemExit:
+        print(f"  (recommendation for {pid[:8]}... unavailable — continuing)")
 
 print(f"\n{'*'*60}")
 print("  ALL STEPS PASSED")

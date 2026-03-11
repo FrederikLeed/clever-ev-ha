@@ -29,6 +29,19 @@ class CleverCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.api = api
         self._slow_data: dict[str, Any] = {}
         self._slow_updated_at: datetime = datetime.min.replace(tzinfo=timezone.utc)
+        # Optimistic boost state: key = connectorId, value = boost label string
+        self._boost_overrides: dict[int, str | None] = {}
+
+    def set_boost_state(self, connector_id: int, state: str | None) -> None:
+        """Set optimistic boost state for a connector.
+
+        state: "Boost 1 Hour", "Boost Until Full", or None to clear (Smart Charging).
+        """
+        self._boost_overrides[connector_id] = state
+
+    def get_boost_state(self, connector_id: int) -> str | None:
+        """Get optimistic boost state, or None if not overridden."""
+        return self._boost_overrides.get(connector_id)
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -58,22 +71,6 @@ class CleverCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for inst in installations:
             connector_id = inst.get("connectorId")
             inst["_profile"] = profile_by_connector.get(connector_id, {})
-
-        # --- DEBUG: dump raw data so we can find where boost state lives ---
-        import json
-        for p in profiles:
-            pid = p.get("id") or p.get("chargingProfileId")
-            if pid:
-                try:
-                    rec = await self.api.async_get_recommendation(pid)
-                    _LOGGER.warning(
-                        "CLEVER DEBUG recommendation %s: %s",
-                        pid,
-                        json.dumps(rec, indent=2, default=str),
-                    )
-                except Exception as exc:
-                    _LOGGER.warning("CLEVER DEBUG recommendation %s FAILED: %s", pid, exc)
-        # --- END DEBUG ---
 
         # dar_reference_id is the same location for all connectors — grab from first profile
         dar_id: str | None = None

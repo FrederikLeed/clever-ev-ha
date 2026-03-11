@@ -54,8 +54,8 @@ class CleverTimeboxBoostButton(_CleverBoostButton):
         await self.coordinator.api.async_timebox_boost(
             self._charge_box_id, self._connector_id
         )
-        await asyncio.sleep(5)
-        await self.coordinator.async_request_refresh()
+        self.coordinator.set_boost_state(self._connector_id, "Boost 1 Hour")
+        self.coordinator.async_set_updated_data(self.coordinator.data)
 
 
 class CleverBoostButton(_CleverBoostButton):
@@ -70,8 +70,8 @@ class CleverBoostButton(_CleverBoostButton):
         await self.coordinator.api.async_boost(
             self._charge_box_id, self._connector_id
         )
-        await asyncio.sleep(5)
-        await self.coordinator.async_request_refresh()
+        self.coordinator.set_boost_state(self._connector_id, "Boost Until Full")
+        self.coordinator.async_set_updated_data(self.coordinator.data)
 
 
 class CleverUnboostButton(_CleverBoostButton):
@@ -86,5 +86,5 @@ class CleverUnboostButton(_CleverBoostButton):
         await self.coordinator.api.async_unboost(
             self._charge_box_id, self._connector_id
         )
-        await asyncio.sleep(5)
-        await self.coordinator.async_request_refresh()
+        self.coordinator.set_boost_state(self._connector_id, None)
+        self.coordinator.async_set_updated_data(self.coordinator.data)

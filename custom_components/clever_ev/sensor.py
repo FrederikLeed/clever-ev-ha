@@ -22,16 +22,15 @@ from .const import DOMAIN
 from .coordinator import CleverCoordinator
 
 
-def _boost_status(inst: dict) -> str | None:
-    """Return boost status from the profile's strategySettings."""
-    strategy = (inst.get("_profile") or {}).get("strategySettings") or {}
-    disabled = strategy.get("disabled")
-    reason = strategy.get("reason")
-    if disabled is True:
-        return reason or "Boosted"
-    if disabled is False:
-        return "Smart Charging"
-    return None
+def _boost_status(inst: dict, coordinator: CleverCoordinator | None = None) -> str:
+    """Return boost status — optimistic override first, then API fallback."""
+    connector_id = inst.get("connectorId")
+    if coordinator and connector_id is not None:
+        override = coordinator.get_boost_state(connector_id)
+        if override is not None:
+            return override
+    # Fallback: no boost active (or unknown)
+    return "Smart Charging"
 
 
 def _smart_cfg(inst: dict) -> dict:
@@ -98,7 +97,8 @@ def _in_current_month(record: dict, now: datetime) -> bool:
 @dataclass(frozen=True, kw_only=True)
 class CleverSensorDescription(SensorEntityDescription):
     # inst = installation dict (with _profile injected), data = full coordinator data
-    value_fn: Callable[[dict, dict], Any]
+    # optional coordinator arg for sensors that need it (e.g. boost_status)
+    value_fn: Callable[..., Any]
 
 
 SENSORS: tuple[CleverSensorDescription, ...] = (
@@ -136,7 +136,7 @@ SENSORS: tuple[CleverSensorDescription, ...] = (
         key="boost_status",
         name="Boost Status",
         icon="mdi:lightning-bolt",
-        value_fn=lambda inst, _d: _boost_status(inst),
+        value_fn=lambda inst, _d, coord=None: _boost_status(inst, coord),
     ),
     CleverSensorDescription(
         key="electricity_price",
@@ -206,9 +206,12 @@ class CleverSensor(CoordinatorEntity[CleverCoordinator], SensorEntity):
 
     @property
     def native_value(self) -> Any:
-        return self.entity_description.value_fn(
-            self._installation(), self.coordinator.data
-        )
+        desc = self.entity_description
+        if desc.key == "boost_status":
+            return desc.value_fn(
+                self._installation(), self.coordinator.data, self.coordinator
+            )
+        return desc.value_fn(self._installation(), self.coordinator.data)
 
 
 def _device_info(installation: dict) -> dict:
