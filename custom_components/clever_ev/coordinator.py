@@ -67,10 +67,25 @@ class CleverCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 for cp in loc.get("chargePoints", []):
                     profile_by_connector[cp["connectorId"]] = p
 
-        # Annotate each installation with its matching profile
+        # Annotate each installation with its matching profile + charging state
         for inst in installations:
             connector_id = inst.get("connectorId")
-            inst["_profile"] = profile_by_connector.get(connector_id, {})
+            profile = profile_by_connector.get(connector_id, {})
+            inst["_profile"] = profile
+
+            # Check recommendation endpoint to detect active charging session
+            profile_id = profile.get("id")
+            if profile_id:
+                try:
+                    rec = await self.api.async_get_recommendation(profile_id)
+                    inst["_charging"] = True
+                    inst["_recommendation"] = rec
+                except Exception:  # noqa: BLE001
+                    inst["_charging"] = False
+                    inst["_recommendation"] = {}
+            else:
+                inst["_charging"] = False
+                inst["_recommendation"] = {}
 
         # dar_reference_id is the same location for all connectors — grab from first profile
         dar_id: str | None = None

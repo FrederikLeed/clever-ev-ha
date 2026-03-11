@@ -61,6 +61,7 @@ Entities are created per installation (connector). If you have two connectors, y
 |---|---|
 | `binary_sensor.clever_ev_smart_charging` | Smart charging enabled |
 | `binary_sensor.clever_ev_charger_online` | Charger reachable |
+| `binary_sensor.clever_ev_car_charging` | Car is actively charging (detected via recommendation endpoint) |
 
 ### Buttons
 
@@ -176,7 +177,7 @@ CLEVER_EMAIL=you@example.com CLEVER_PASSWORD=yourpassword python test_auth.py
 
 | Data | Interval |
 |---|---|
-| Charger state, smart charging config | Every 1 minute |
+| Charger state, smart charging config, charging detection | Every 1 minute |
 | Consumption history, electricity prices | Every 30 minutes |
 
 ## Automation ideas
@@ -224,12 +225,26 @@ automation:
     - service: button.press
       target:
         entity_id: button.clever_ev_boost_1_hour
+
+# Auto-boost: when car is plugged in, wait 5 min, then boost until full
+automation:
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.clever_ev_car_charging
+      to: "on"
+  action:
+    - delay: "00:05:00"
+    - condition: state
+      entity_id: binary_sensor.clever_ev_car_charging
+      state: "on"
+    - service: button.press
+      target:
+        entity_id: button.clever_ev_boost_until_full
 ```
 
 ## TODO
 
 - [ ] Phase count / ampere configuration (if write endpoints can be found)
-- [ ] Verify boost status sensor shows correct state during active boost
 
 ## Known limitations
 

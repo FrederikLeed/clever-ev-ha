@@ -25,6 +25,7 @@ async def async_setup_entry(
     for inst in coordinator.data["installations"]:
         entities.append(CleverSmartChargingBinarySensor(coordinator, inst))
         entities.append(CleverOnlineBinarySensor(coordinator, inst))
+        entities.append(CleverCarChargingBinarySensor(coordinator, inst))
     async_add_entities(entities)
 
 
@@ -67,3 +68,17 @@ class CleverOnlineBinarySensor(_CleverBinarySensor):
     @property
     def is_on(self) -> bool | None:
         return self._installation().get("isOnline")
+
+
+class CleverCarChargingBinarySensor(_CleverBinarySensor):
+    _attr_name = "Car Charging"
+    _attr_device_class = BinarySensorDeviceClass.BATTERY_CHARGING
+    _attr_icon = "mdi:car-electric"
+
+    def __init__(self, coordinator: CleverCoordinator, installation: dict) -> None:
+        super().__init__(coordinator, installation)
+        self._attr_unique_id = f"clever_ev_{self._installation_id}_car_charging"
+
+    @property
+    def is_on(self) -> bool | None:
+        return self._installation().get("_charging", False)
